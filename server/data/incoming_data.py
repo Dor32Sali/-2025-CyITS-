@@ -6,8 +6,7 @@ from config import DATA_FROM_DIR
 
 # Convert to normal string path for Windows
 BASE = Path(str(DATA_FROM_DIR))
-
-BASE.mkdir(parents=True, exist_ok=True)  # ✅ this is the correct way
+BASE.mkdir(parents=True, exist_ok=True)
 
 FILE_PATH = BASE / "events.jsonl"
 
