@@ -121,7 +121,7 @@ def events():
     Server-Sent Events endpoint.
 
     Frontend example:
-      const es = new EventSource('https://<your-ngrok>.ngrok-free.app/events');
+      const es = new EventSource('https://casteless-unpatronizable-ephraim.ngrok-free.app/events');
       es.onmessage = (event) => console.log(JSON.parse(event.data));
     """
     return Response(generate_sse(), mimetype="text/event-stream")

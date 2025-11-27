@@ -1,2 +1,0 @@
-Timestamp,Emergency_Flag,Phase,Health_Flag,CSW_Warn_Rate,DMS_Update_Flag,SPAT_TX_Rate,IM_Fwd_Drop_Rate,Msg_Rx_Rate,Preempt_Call_Count,TIM_Sent_Flag,Log_Error_Flag,Is_Anomaly_Ground_Truth
-11/24/2024 0:00,0,3,0,0,0,0.8156870668192493,0.077790905,95,0,0,0,0
