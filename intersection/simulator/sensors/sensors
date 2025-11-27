@@ -1,0 +1,183 @@
+import pandas as pd
+import numpy as np
+from datetime import datetime
+from abc import ABC, abstractmethod
+
+# --- Base Class ---
+
+class SensorData(ABC):
+    """
+    Base class for all sensor data handling.
+    
+    Handles initialization and provides a common interface for accessing the 
+    generated DataFrame. Subclasses must implement the data generation logic.
+    """
+    def __init__(self, num_samples=100, timestamp_col='Timestamp'):
+        """
+        Initializes the SensorData object and triggers data generation.
+        
+        Args:
+            num_samples (int): The number of synthetic data points to generate.
+            timestamp_col (str): The name of the timestamp index.
+        """
+        self.df = None
+        self.timestamp_col = timestamp_col
+        self.num_samples = num_samples
+        self._generate_synthetic_data()
+
+    @abstractmethod
+    def _generate_synthetic_data(self):
+        """
+        Abstract method for generating synthetic data.
+        Must be implemented by all subclasses.
+        """
+        pass
+
+    def get_raw_data(self):
+        """Returns the complete DataFrame."""
+        return self.df
+
+# --- Subclasses (Inheritance) ---
+
+class CameraSensor(SensorData):
+    """
+    Handles data specific to traffic camera sensors by generating synthetic data.
+    All column names and accessors are explicitly case-sensitive.
+    """
+    def __init__(self, num_samples=100):
+        super().__init__(num_samples)
+
+    def _generate_synthetic_data(self):
+        """Generates synthetic traffic camera sensor data."""
+        start_time = datetime(2025, 1, 1, 8, 0, 0)
+        timestamps = pd.date_range(start=start_time, periods=self.num_samples, freq='5min')
+        df = pd.DataFrame(index=timestamps)
+        df.index.name = self.timestamp_col
+        
+        # Directional Car Counts - Case-sensitive column names
+        directions = ['North_Cars', 'South_Cars', 'East_Cars', 'West_Cars']
+        for col in directions:
+            df[col] = np.random.randint(10, 60, self.num_samples)
+
+        # Metrics Generation - Case-sensitive column names
+        df['Queue_Length'] = np.random.randint(0, 25, self.num_samples)
+        df['Avg_Speed'] = np.random.uniform(40.0, 70.0, self.num_samples).round(2)
+        df['Blocked_Cars'] = np.random.randint(0, 10, self.num_samples)
+        
+        # Derived Metric: Ratio of Blocked Cars to Total Entering (using a proxy sum)
+        total_cars_in_period = df[directions].sum(axis=1)
+        # Avoid division by zero by setting a small floor
+        df['Blocked_to_Served_Ratio'] = (df['Blocked_Cars'] / (total_cars_in_period + 1)).round(4)
+        
+        self.df = df
+        print(f"Successfully generated {self.num_samples} synthetic Camera Sensor samples.")
+
+    def get_directional_car_counts(self):
+        """
+        Returns car counts for North, South, East, and West directions. 
+        Uses case-sensitive column names.
+        """
+        directions = ['North_Cars', 'South_Cars', 'East_Cars', 'West_Cars']
+        if self.df is not None and all(col in self.df.columns for col in directions):
+            return self.df[directions]
+        return pd.DataFrame()
+
+    def get_queue_and_blocked(self):
+        """
+        Returns queue length and blocked car metrics.
+        Uses case-sensitive column names.
+        """
+        cols = ['Queue_Length', 'Blocked_Cars', 'Blocked_to_Served_Ratio']
+        if self.df is not None and all(col in self.df.columns for col in cols):
+            return self.df[cols]
+        return pd.DataFrame()
+
+class RcuSensor(SensorData):
+    """
+    Handles data specific to Roadside Control Unit (RCU) / Traffic Light.
+    All column names and accessor logic are explicitly case-sensitive.
+    """
+    def __init__(self, num_samples=100):
+        super().__init__(num_samples)
+
+    def _generate_synthetic_data(self):
+        """Generates synthetic RCU sensor data."""
+        start_time = datetime(2025, 1, 1, 8, 0, 0)
+        timestamps = pd.date_range(start=start_time, periods=self.num_samples, freq='5min')
+        df = pd.DataFrame(index=timestamps)
+        df.index.name = self.timestamp_col
+
+        # Logical Data Generation - Case-sensitive column names and values
+        phases = ['NS_GREEN', 'EW_GREEN', 'ALL_RED', 'NS_YELLOW', 'EW_YELLOW']
+        df['Phase'] = np.random.choice(phases, self.num_samples, p=[0.3, 0.3, 0.25, 0.075, 0.075])
+        
+        # Emergency Flag - Case-sensitive column name
+        df['Emergency_Flag'] = np.random.choice([0, 1], self.num_samples, p=[0.95, 0.05])
+        
+        # Health Flag - Case-sensitive column name
+        df['Health_Flag'] = np.random.choice([1, 0], self.num_samples, p=[0.90, 0.10])
+        
+        # Logical correlation: Emergency event always results in ALL_RED and low Health
+        emergency_mask = df['Emergency_Flag'] == 1
+        df.loc[emergency_mask, 'Phase'] = 'ALL_RED'
+        df.loc[emergency_mask, 'Health_Flag'] = 0
+
+        self.df = df
+        print(f"Successfully generated {self.num_samples} synthetic RCU Sensor samples.")
+
+    def get_traffic_phase(self):
+        """
+        Returns the current signal phase and health flag.
+        Uses case-sensitive column names.
+        """
+        cols = ['Phase', 'Health_Flag']
+        if self.df is not None and all(col in self.df.columns for col in cols):
+            return self.df[cols]
+        return pd.DataFrame()
+
+    def get_emergency_events(self):
+        """
+        Returns data points where the Emergency_Flag is set.
+        The column name ('Emergency_Flag') and the value (1) are case-sensitive.
+        """
+        if self.df is not None and 'Emergency_Flag' in self.df.columns:
+            # Explicitly checking for the case-sensitive column name and value
+            return self.df[self.df['Emergency_Flag'] == 1]
+        return pd.DataFrame()
+
+
+# --- Example Usage ---
+
+if __name__ == '__main__':
+    # Initialize the sensor objects, now generating 50 samples each
+    num_data_points = 50
+    
+    print("\n--- Initializing Camera Sensor ---")
+    camera_sensor = CameraSensor(num_samples=num_data_points)
+    
+    print("\n--- Camera Sensor Analysis ---")
+    print("First 5 rows of raw data:")
+    print(camera_sensor.get_raw_data().head())
+    
+    print("\nDirectional Car Counts:")
+    print(camera_sensor.get_directional_car_counts().head())
+    
+    print("\nQueue and Blocked Metrics:")
+    print(camera_sensor.get_queue_and_blocked().head())
+
+
+    print("\n--- Initializing RCU Sensor ---")
+    rcu_sensor = RcuSensor(num_samples=num_data_points)
+
+    print("\n--- RCU Sensor Analysis ---")
+    print("First 5 rows of raw data:")
+    print(rcu_sensor.get_raw_data().head())
+    
+    print("\nTraffic Phase and Health:")
+    print(rcu_sensor.get_traffic_phase().head())
+    
+    print("\nEmergency Events (RCU Sensor):")
+    emergencies = rcu_sensor.get_emergency_events()
+    print(f"Found {len(emergencies)} emergency events.")
+    if not emergencies.empty:
+        print(emergencies)
