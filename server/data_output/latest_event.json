@@ -1,0 +1,57 @@
+{
+    "timestamp_received": "2025-11-27T09:39:45.457281",
+    "intersection_id": "Intersection_B2",
+    "block_id": "BLOCK_B",
+    "timestamp": 1764236385,
+    "light_state": {
+        "N": "GREEN",
+        "S": "GREEN",
+        "E": "RED",
+        "W": "RED"
+    },
+    "sensor_readings": {
+        "CAMERA_DATA": {
+            "Hour_of_Day": 11,
+            "North_Cars": 78,
+            "South_Cars": 198,
+            "East_Cars": 96,
+            "West_Cars": 64,
+            "Queue_Length": 11,
+            "Avg_Speed": 71.67,
+            "Blocked_Cars": 8,
+            "Delta_Queue": 0,
+            "Delta_Speed": -3.91,
+            "Ped_Waiting": 0,
+            "Max_Direction_Cars": 198,
+            "Direction_Imbalance": 0.2654,
+            "Blocked_to_Served_Ratio": 0.0183,
+            "Timestamp": "2025-11-27T11:39:45.261220"
+        },
+        "RCU_DATA": {
+            "Phase": "NS_GREEN",
+            "Emergency_Flag": 0,
+            "Health_Flag": 1,
+            "CSW_Warn_Rate": 0.0166,
+            "DMS_Update_Flag": 0,
+            "SPAT_TX_Rate": 0.8352,
+            "IM_Fwd_Drop_Rate": 0.0463,
+            "Msg_Rx_Rate": 62,
+            "Preempt_Call_Count": 4,
+            "TIM_Sent_Flag": 0,
+            "Log_Error_Flag": 0,
+            "Timestamp": "2025-11-27T11:39:45.262681"
+        },
+        "LOOP_DATA": {
+            "Is_All_Red": 0,
+            "Edge_Blackhole_NS": 0,
+            "Edge_Blackhole_EW": 1,
+            "Avg_Presence_Time_s": 1.4366,
+            "Loop_Occupancy_Ratio": 0.0266,
+            "Loop_Vehicle_Count": 354,
+            "Loop_Avg_Speed": 63.5816,
+            "Truck_Ratio": 0.0967,
+            "Timestamp": "2025-11-27T11:39:45.263011"
+        }
+    },
+    "pedestrian_button_pressed": false
+}

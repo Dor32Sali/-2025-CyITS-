@@ -1,2 +1,2 @@
 Timestamp,Hour_of_Day,North_Cars,South_Cars,East_Cars,West_Cars,Queue_Length,Avg_Speed,Delta_Queue,Delta_Speed,Ped_Waiting,Max_Direction_Cars,Direction_Imbalance,Blocked_Cars,Blocked_to_Served_Ratio,Is_Anomaly_Ground_Truth
-11/24/2024 0:00,0,121,114,5,28,5,56.578515,4,2.969467213,0,190,0.238767992,2,0.194356087,1
+11/24/2024 0:00,0,121,114,5,28,5,56.578515,4,2.969467213,0,190,0.238767992,2,0.194356087,0

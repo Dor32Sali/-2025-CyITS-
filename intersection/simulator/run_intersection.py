@@ -1,20 +1,38 @@
+# intersection_node.py
+
 import time
 from pprint import pprint
 import os
 import numpy as np
 import requests
 import json
-import random  # 👈 for choosing when & which anomaly
+import random
 
-from sensors.sensors import Sensors
+from sensors.sensors import Sensors  # you already have this
 
-INTERSECTION_ID = os.getenv("INTERSECTION_ID", "Junction_A1")
+# Default IDs (kept for backward compatibility, but not strictly needed now)
+INTERSECTION_ID = os.getenv("INTERSECTION_ID", "Intersection_A1")
 BLOCK_ID = os.getenv("BLOCK_ID", "BLOCK_DEFAULT")
+
+# 🔹 List of possible junctions (randomly picked per cycle)
+JUNCTIONS = [
+    ("Intersection_A1", "BLOCK_A"),
+    ("Intersection_B2", "BLOCK_B"),
+    ("Intersection_C3", "BLOCK_C"),
+    ("Intersection_D4", "BLOCK_D"),
+]
+
+BLOCK_BRAIN_BASE_URL = os.getenv(
+    "BLOCK_BRAIN_BASE_URL",
+    "https://casteless-unpatronizable-ephraim.ngrok-free.dev"
+)
+
+API_ENDPOINT = "/api/intersection"
 
 
 class VehicleSimulation:
     def update(self, light_state):
-        # For now we don't simulate vehicles in detail
+        # Placeholder for future vehicle sim logic
         pass
 
 
@@ -31,7 +49,7 @@ class TrafficLight:
 
 
 class NodeAPIClient:
-    def __init__(self, block_brain_url):
+    def __init__(self, block_brain_url: str):
         self.url = block_brain_url
 
     def send_telemetry(self, telemetry_data):
@@ -45,6 +63,7 @@ class NodeAPIClient:
 
         try:
             safe_payload = json.loads(json.dumps(telemetry_data, default=json_serial))
+            print(f"[DEBUG] Sending telemetry to {self.url}")
             response = requests.post(self.url, json=safe_payload, timeout=5)
             print(f"[POST] {self.url} -> {response.status_code}")
             try:
@@ -58,16 +77,18 @@ class NodeAPIClient:
 class IntersectionNode:
     def __init__(
         self,
-        intersection_id=INTERSECTION_ID,
+        intersection_id=INTERSECTION_ID,   # default, but we override per cycle
         block_id=BLOCK_ID,
-        block_brain_base_url="https://casteless-unpatronizable-ephraim.ngrok-free.dev",
-        api_endpoint="/api/intersection",
-        telemetry_interval=5.0,
+        block_brain_base_url=BLOCK_BRAIN_BASE_URL,
+        api_endpoint=API_ENDPOINT,
+        telemetry_interval=2.0,
         lights=None,
+        junctions=None,                   # 🔹 optional custom list of junctions
     ):
         if lights is None:
             lights = {"N": "GREEN", "S": "GREEN", "E": "RED", "W": "RED"}
 
+        # Keep "default" id/block just for logging / backward compat
         self.id = intersection_id
         self.block_id = block_id
         self.telemetry_interval = telemetry_interval
@@ -75,7 +96,10 @@ class IntersectionNode:
         self.vehicle_sim = VehicleSimulation()
         self.light = TrafficLight(lights)
 
-        # Attack / anomaly scheduling
+        # List of possible (intersection_id, block_id) for random selection
+        self.junctions = junctions if junctions is not None else JUNCTIONS
+
+        # Attack / anomaly scheduling (global for this simulator)
         self.cycle_count = 0
         self.next_attack_cycle = self._pick_next_attack_cycle()
 
@@ -83,12 +107,13 @@ class IntersectionNode:
         self.client = NodeAPIClient(full_url)
 
         print(
-            f"Intersection Node '{self.id}' initialized (Block: {self.block_id}), "
+            f"Intersection Node simulator initialized (default id='{self.id}', block='{self.block_id}'), "
             f"targeting URL: {full_url}"
         )
+        print(f"Random junctions pool: {self.junctions}")
 
     # ------------------------
-    # Attack scheduler helpers
+    # (Optional) Attack scheduler
     # ------------------------
     def _pick_next_attack_cycle(self) -> int:
         """Choose in how many cycles we will inject the next anomaly (5–7)."""
@@ -104,9 +129,8 @@ class IntersectionNode:
         scenario = random.choice(
             ["PHASE_DESYNC", "EDGE_BLACKHOLE_ATTACK", "FORCED_ALL_RED_DOS"]
         )
-        print(f"[ATTACK] Injecting anomaly scenario: {scenario}")
+        print(f"[ATTACK] {telemetry.get('intersection_id')}: Injecting anomaly scenario: {scenario}")
 
-        light_state = telemetry.get("light_state", {})
         sensor_readings = telemetry.get("sensor_readings", {})
 
         cam = sensor_readings.get("CAMERA_DATA", {})
@@ -115,22 +139,17 @@ class IntersectionNode:
 
         # 1) PHASE_DESYNC: phase vs lights mismatch
         if scenario == "PHASE_DESYNC":
-            # Force controller to say NS_GREEN but lights are EW_GREEN
-            # This should trigger PHASE_DESYNC and NS_GREEN_BUT_NS_RED.
             rcu["Phase"] = "NS_GREEN"
-            # Force lights to EW-GREEN pattern
             telemetry["light_state"] = {"N": "RED", "S": "RED", "E": "GREEN", "W": "GREEN"}
             sensor_readings["RCU_DATA"] = rcu
 
         # 2) EDGE_BLACKHOLE_ATTACK: camera sees traffic, loop sees nothing
         elif scenario == "EDGE_BLACKHOLE_ATTACK":
-            # Camera: heavy traffic
             cam["North_Cars"] = 80
             cam["South_Cars"] = 70
             cam["East_Cars"] = 40
             cam["West_Cars"] = 30
-            cam["Queue_Length"] = 25  # big queue
-            # Loops: blackhole, almost nothing
+            cam["Queue_Length"] = 25
             loop["Edge_Blackhole_NS"] = 1
             loop["Edge_Blackhole_EW"] = 1
             loop["Loop_Vehicle_Count"] = 0
@@ -140,17 +159,13 @@ class IntersectionNode:
 
         # 3) FORCED_ALL_RED_DOS: stuck all-red with big queue, no emergency
         elif scenario == "FORCED_ALL_RED_DOS":
-            # All lights red
             telemetry["light_state"] = {"N": "RED", "S": "RED", "E": "RED", "W": "RED"}
-            # Controller thinks ALL_RED, no emergency or preempt
             rcu["Phase"] = "ALL_RED"
             rcu["Emergency_Flag"] = 0
             rcu["Preempt_Call_Count"] = 0
             sensor_readings["RCU_DATA"] = rcu
-            # Big queue on camera
             cam["Queue_Length"] = 35
             sensor_readings["CAMERA_DATA"] = cam
-            # Loop may also say all red
             loop["Is_All_Red"] = 1
             sensor_readings["LOOP_DATA"] = loop
 
@@ -160,13 +175,13 @@ class IntersectionNode:
     # ------------------------
     # Telemetry generation
     # ------------------------
-    def generate_telemetry(self):
+    def generate_telemetry(self, intersection_id: str, block_id: str):
         raw_readings_list = self.sensors.get_all_labeled_readings()
         processed_readings = {}
 
         for reading in raw_readings_list:
             # Convert numpy types to native Python
-            for key, value in reading.items():
+            for key, value in list(reading.items()):
                 if isinstance(value, np.generic):
                     reading[key] = value.item()
 
@@ -178,8 +193,8 @@ class IntersectionNode:
                 processed_readings[new_key] = reading
 
         return {
-            "intersection_id": self.id,
-            "block_id": self.block_id,
+            "intersection_id": intersection_id,
+            "block_id": block_id,
             "timestamp": int(time.time()),
             "light_state": self.light.state,
             "sensor_readings": processed_readings,
@@ -189,23 +204,22 @@ class IntersectionNode:
     # ------------------------
     # Main cycle
     # ------------------------
-    def run_once(self):
+    def run_once(self, intersection_id: str, block_id: str):
         # Update local simulation
         self.light.update()
         self.vehicle_sim.update(self.light.state)
         self.sensors.simulate_pedestrian_press()
 
-        telemetry = self.generate_telemetry()
+        telemetry = self.generate_telemetry(intersection_id, block_id)
 
-        # Increase cycle counter and check if it's time for an anomaly
+        # Optional: inject anomalies every 5–7 cycles
         self.cycle_count += 1
         if self.cycle_count >= self.next_attack_cycle:
             telemetry = self.inject_random_anomaly(telemetry)
-            # reset for next attack window
             self.cycle_count = 0
             self.next_attack_cycle = self._pick_next_attack_cycle()
 
-        # Send telemetry to block brain
+        # Send telemetry to block brain (your Flask server)
         self.client.send_telemetry(telemetry)
 
         # Reset pedestrian button for next round
@@ -213,18 +227,21 @@ class IntersectionNode:
 
         return telemetry
 
-    def run(self, max_cycles=20):
-        print(f"\n--- Starting Intersection Simulation for {max_cycles} cycles ---")
+    def run(self):
+        print(f"\n--- Starting Intersection Simulation (random junctions, infinite) ---")
+        cycle = 0
 
-        for cycle in range(1, max_cycles + 1):
-            print(f"\n[CYCLE {cycle}]")
-            telemetry = self.run_once()
+        while True:
+            cycle += 1
+            # 🔹 Pick a random junction for this cycle
+            intersection_id, block_id = random.choice(self.junctions)
+            print(f"\n[Cycle {cycle}] Using intersection '{intersection_id}' (block '{block_id}')")
+
+            telemetry = self.run_once(intersection_id, block_id)
             pprint(telemetry)
             time.sleep(self.telemetry_interval)
 
-        print("\n--- Simulation Complete ---")
-
 
 if __name__ == "__main__":
-    node = IntersectionNode(telemetry_interval=1.0)
-    node.run(max_cycles=30)
+    node = IntersectionNode(telemetry_interval=10.0)
+    node.run()  # 👈 infinite loop, stop with Ctrl+C
