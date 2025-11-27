@@ -7,7 +7,7 @@ from config import DATA_TO_DIR
 BASE = Path(str(DATA_TO_DIR))
 BASE.mkdir(parents=True, exist_ok=True)
 
-FILE_PATH = BASE / "events.jsonl"
+FILE_PATH = BASE / "pavel.jsonl"
 
 
 def save_outgoing(data: dict):

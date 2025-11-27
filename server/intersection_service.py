@@ -1,5 +1,6 @@
 from data.incoming_data import save_incoming
-from core.queue_manager import get_queue 
+from core.queue_manager import get_queue # NEW IMPORT
+# Note: Removed dependencies on handlers/event_handler and services/frontend_service
 from datetime import datetime
 
 def process_intersection_data(data: dict):
@@ -15,10 +16,11 @@ def process_intersection_data(data: dict):
     """
 
     # 1) Save raw telemetry to file (CRITICAL STEP)
-    save_incoming(data)
+    
     
     # 2) Put the raw event data onto a queue for processing by workers (e.g., event handlers)
     get_queue().put(data)
+    
 
     # Extract basic metadata for the response
     intersection_id = data.get("intersection_id", "UNKNOWN")
